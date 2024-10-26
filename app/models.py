@@ -8,11 +8,12 @@ class Users(db.Model):
     password = db.Column(db.String(128), nullable=False)
     first_name = db.Column(db.String(80), nullable=False)
     last_name = db.Column(db.String(80), nullable=False)
+    user_id = db.Column(db.String(80), nullable = True)
 
     @staticmethod
-    def create_user(email, password, first_name, last_name):
+    def create_user(email, password, first_name, last_name,user_id):
         hashed_password = generate_password_hash(password)
-        new_user = Users(email=email, password=hashed_password, first_name=first_name, last_name=last_name)
+        new_user = Users(email=email, password=hashed_password, first_name=first_name, last_name=last_name, user_id = user_id)
         db.session.add(new_user)
         try:
             db.session.commit()

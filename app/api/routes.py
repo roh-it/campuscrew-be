@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from app.models import Users 
+import uuid 
 
 api = Blueprint('api', __name__)
 
@@ -12,11 +13,13 @@ def create_user():
     password = data.get('password')
     if not password or not email:
         return jsonify({'error': 'E-Mail and password are required'}), 400
-    new_user, error = Users.create_user(email, password, firstName, lastName)
+    
+    user_id = str(uuid.uuid1())
+    new_user, error = Users.create_user(email, password, firstName, lastName,user_id)
     if error:
         return jsonify({'error': error}), 500
-
-    return jsonify({'message': 'User created successfully'}), 201
+    
+    return jsonify({'message': 'User created successfully', 'user_id': user_id}), 201
 
 
 @api.route('/login', methods=['POST'])
@@ -31,6 +34,6 @@ def login():
     user = Users.query.filter_by(email=email).first()
     
     if user and Users.check_password(user, password):
-        return jsonify({'message': 'Login successful'}), 200
+        return jsonify({'message': 'Login successful', 'user_id': user.user_id}), 200
     else:
         return jsonify({'error': 'Invalid email or password'}), 400
