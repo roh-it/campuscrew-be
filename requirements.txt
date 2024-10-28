@@ -1,0 +1,7 @@
+click==8.1.3
+flask==3.0.0
+flask-SQLAlchemy==3.0.3
+SQLAlchemy==2.0.21
+PyMySQL==1.0.3
+cryptography
+werkzeug
