@@ -14,6 +14,10 @@ def create_user():
     isPfw = data.get("isPfw")
     if not password or not email:
         return jsonify({'error': 'E-Mail and password are required'}), 400
+    
+    existing_user = Users.find_by_email(email)
+    if existing_user:
+        return jsonify({'error': 'Email is already in use'}), 400
 
     user_id = str(uuid.uuid1())
     new_user, error = Users.create_user(email, password, firstName, lastName, user_id, is_pfw= isPfw)
@@ -33,7 +37,11 @@ def login():
         return jsonify({'error': 'E-Mail and password are required'}), 400
 
     user = Users.find_by_email(email)
+    
+    if user is None:
+        return jsonify({'error': 'User not found'}), 400
+    
     if user and Users.check_password(user, password):
-        return jsonify({'message': 'Login successful', 'user_id': user["user_id"]}), 200
+        return jsonify({'message': 'Login successful', 'user_id': user["user_id"], 'is_pfw': user["is_pfw"]}), 200
     else:
         return jsonify({'error': 'Invalid email or password'}), 400
