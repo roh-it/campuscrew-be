@@ -24,9 +24,8 @@ class Users:
     @staticmethod
     def find_by_email(email):
         response = supabase.table("users").select("*").eq("email", email).execute()
-        if not response:
+        if not response or len(response.data) == 0:
             return None
-        print(response.data)
         return response.data[0]
 
     @staticmethod
