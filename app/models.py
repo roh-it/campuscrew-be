@@ -1,6 +1,8 @@
 from werkzeug.security import generate_password_hash, check_password_hash
 from .config import Config
 from supabase import create_client
+import uuid
+from datetime import datetime
 
 supabase = create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
 
@@ -31,3 +33,48 @@ class Users:
     @staticmethod
     def check_password(user, password):
         return check_password_hash(user["password"], password)
+
+class Services:
+    @staticmethod
+    def create_service(name, description, rate, category_id, user_id):
+        service_id = str(uuid.uuid4())
+        created_at = datetime.utcnow().isoformat()
+        response = supabase.table("services").insert({
+            "service_id": service_id,
+            "name": name,
+            "description": description,
+            "rate": rate,
+            "user_id": user_id,
+            "category_id": category_id,
+            "created_at": created_at
+        }).execute()
+
+        if not response.data:
+            return None, f"Failed to create service: {response.error.message if response.error else 'Unknown error'}"
+        return service_id, None
+
+    @staticmethod
+    def add_service_images(service_id, image_urls):
+        image_records = [{"service_id": service_id, "image_url": url} for url in image_urls]
+        response = supabase.table("serviceimages").insert(image_records).execute()
+
+        if not response.data:
+            return None, f"Failed to add service images: {response.error.message if response.error else 'Unknown error'}"
+        return response.data, None
+
+    @staticmethod
+    def add_availability_slots(service_id, availability):
+        slot_records = [
+            {
+                "service_id": service_id,
+                "day_of_week": slot["day_of_week"],
+                "start_time": slot["start_time"],
+                "end_time": slot["end_time"]
+            }
+            for slot in availability
+        ]
+        response = supabase.table("serviceavailability").insert(slot_records).execute()
+
+        if not response.data:
+            return None, f"Failed to add service availability: {response.error.message if response.error else 'Unknown error'}"
+        return response.data, None
