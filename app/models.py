@@ -78,3 +78,48 @@ class Services:
         if not response.data:
             return None, f"Failed to add service availability: {response.error.message if response.error else 'Unknown error'}"
         return response.data, None
+    
+    @staticmethod
+    def get_all_services():
+        try:
+            response = supabase.table("services") \
+                .select("*, serviceimages(image_url), serviceavailability(day_of_week, start_time, end_time), users!inner(first_name, last_name, email)") \
+                .execute()
+            
+            if not response.data:
+                return [], None
+            
+            return response.data, None
+        except Exception as e:
+            return None, f"Error fetching services: {str(e)}"
+        
+
+    @staticmethod
+    def get_services_by_category(category_id):
+        try:
+            response = supabase.table("services") \
+                .select("*, serviceimages(image_url), serviceavailability(day_of_week, start_time, end_time), users!inner(first_name, last_name, email)") \
+                .eq("category_id", category_id) \
+                .execute()
+            
+            if not response.data:
+                return [], None
+                
+            return response.data, None
+        except Exception as e:
+            return None, f"Error fetching services by category: {str(e)}"
+        
+    @staticmethod
+    def get_services_by_user(user_id):
+        try:
+            response = supabase.table("services") \
+                .select("*, serviceimages(image_url), serviceavailability(day_of_week, start_time, end_time), users!inner(first_name, last_name, email)") \
+                .eq("user_id", user_id) \
+                .execute()
+            
+            if not response.data:
+                return [], None
+                
+            return response.data, None
+        except Exception as e:
+            return None, f"Error fetching services by user: {str(e)}"
