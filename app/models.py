@@ -67,9 +67,8 @@ class Services:
         slot_records = [
             {
                 "service_id": service_id,
-                "day_of_week": slot["day_of_week"],
-                "start_time": slot["start_time"],
-                "end_time": slot["end_time"]
+                "max_hrs": slot["max_hrs"],
+                "avail_slots": slot["avail_slots"]
             }
             for slot in availability
         ]
@@ -83,7 +82,7 @@ class Services:
     def get_all_services():
         try:
             response = supabase.table("services") \
-                .select("*, serviceimages(image_url), serviceavailability(day_of_week, start_time, end_time), users!inner(first_name, last_name, email)") \
+                .select("*, serviceimages(image_url), serviceavailability(max_hrs,avail_slots), users!inner(first_name, last_name, email)") \
                 .execute()
             
             if not response.data:
@@ -98,7 +97,7 @@ class Services:
     def get_services_by_category(category_id):
         try:
             response = supabase.table("services") \
-                .select("*, serviceimages(image_url), serviceavailability(day_of_week, start_time, end_time), users!inner(first_name, last_name, email)") \
+                .select("*, serviceimages(image_url), serviceavailability(max_hrs, avail_slots), users!inner(first_name, last_name, email)") \
                 .eq("category_id", category_id) \
                 .execute()
             
@@ -113,7 +112,7 @@ class Services:
     def get_services_by_user(user_id):
         try:
             response = supabase.table("services") \
-                .select("*, serviceimages(image_url), serviceavailability(day_of_week, start_time, end_time), users!inner(first_name, last_name, email)") \
+                .select("*, serviceimages(image_url), serviceavailability(max_hrs,avail_slots), users!inner(first_name, last_name, email)") \
                 .eq("user_id", user_id) \
                 .execute()
             
