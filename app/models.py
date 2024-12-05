@@ -123,3 +123,91 @@ class Services:
             return response.data, None
         except Exception as e:
             return None, f"Error fetching services by user: {str(e)}"
+class Bookings:
+    @staticmethod
+    def create_slot(service_id):
+        try:
+            slot_id = int(datetime.utcnow().timestamp() * 1000)
+            
+            # Create slot record
+            slot_response = supabase.table("slots").insert({
+                "slot_id": slot_id,
+                "service_id": service_id,
+                # Add any other required fields for slots table
+            }).execute()
+
+            if not slot_response.data:
+                return None, "Failed to create slot"
+
+            return slot_response.data[0], None
+        except Exception as e:
+            return None, str(e)
+
+    @staticmethod
+    def create_booking(service_id, user_id):
+        try:
+            # First create a slot
+            slot, error = Bookings.create_slot(service_id)
+            if error:
+                return None, error
+
+            # Generate UUID for booking_id
+            booking_id = str(uuid.uuid4())
+            
+            # Create booking record using the slot_id
+            response = supabase.table("bookings").insert({
+                "booking_id": booking_id,
+                "slot_id": slot["slot_id"],
+                "booked_by": user_id,
+                "booking_time": datetime.utcnow().isoformat()
+            }).execute()
+
+            if not response.data:
+                return None, "Failed to create booking"
+
+            return {
+                **response.data[0],
+                "slot": slot
+            }, None
+        except Exception as e:
+            return None, str(e)
+
+    @staticmethod
+    def get_user_bookings(user_id):
+        try:
+            response = supabase.table("bookings") \
+                .select("""
+                    *,
+                    users!inner(
+                        first_name,
+                        last_name,
+                        email
+                    ),
+                    slots!inner(*)
+                """) \
+                .eq("booked_by", user_id) \
+                .order('booking_time', desc=True) \
+                .execute()
+            return response.data, None
+        except Exception as e:
+            return None, str(e)
+
+    @staticmethod
+    def get_booking_by_slot(slot_id):
+        try:
+            response = supabase.table("bookings") \
+                .select("""
+                    *,
+                    users!inner(
+                        first_name,
+                        last_name,
+                        email
+                    ),
+                    slots!inner(*)
+                """) \
+                .eq("slot_id", slot_id) \
+                .single() \
+                .execute()
+            return response.data, None
+        except Exception as e:
+            return None, str(e)
