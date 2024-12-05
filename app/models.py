@@ -125,7 +125,7 @@ class Services:
             return None, f"Error fetching services by user: {str(e)}"
 class Bookings:
     @staticmethod
-    def create_slot(service_id):
+    def create_slot(service_id, start_time, end_time):
         try:
             slot_id = int(datetime.utcnow().timestamp() * 1000)
             
@@ -133,7 +133,9 @@ class Bookings:
             slot_response = supabase.table("slots").insert({
                 "slot_id": slot_id,
                 "service_id": service_id,
-                # Add any other required fields for slots table
+                "start_time": start_time,
+                "end_time": end_time,
+                "is_booked": False
             }).execute()
 
             if not slot_response.data:
@@ -144,10 +146,10 @@ class Bookings:
             return None, str(e)
 
     @staticmethod
-    def create_booking(service_id, user_id):
+    def create_booking(service_id, user_id, start_time, end_time):
         try:
             # First create a slot
-            slot, error = Bookings.create_slot(service_id)
+            slot, error = Bookings.create_slot(service_id, start_time, end_time)
             if error:
                 return None, error
 
@@ -164,7 +166,12 @@ class Bookings:
 
             if not response.data:
                 return None, "Failed to create booking"
-
+            
+            supabase.table("slots") \
+                .update({"is_booked": True}) \
+                .eq("slot_id", slot["slot_id"]) \
+                .execute()
+            
             return {
                 **response.data[0],
                 "slot": slot
@@ -183,7 +190,13 @@ class Bookings:
                         last_name,
                         email
                     ),
-                    slots!inner(*)
+                    slots!inner(
+                        slot_id,
+                        service_id,
+                        start_time,
+                        end_time,
+                        is_booked
+                    )
                 """) \
                 .eq("booked_by", user_id) \
                 .order('booking_time', desc=True) \
@@ -203,7 +216,13 @@ class Bookings:
                         last_name,
                         email
                     ),
-                    slots!inner(*)
+                    slots!inner(
+                        slot_id,
+                        service_id,
+                        start_time,
+                        end_time,
+                        is_booked
+                    )
                 """) \
                 .eq("slot_id", slot_id) \
                 .single() \

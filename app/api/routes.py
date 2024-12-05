@@ -130,11 +130,13 @@ def create_booking():
         data = request.get_json()
         service_id = data.get("service_id")
         user_id = data.get("user_id")
+        start_time = data.get("start_time")
+        end_time = data.get("end_time")
 
-        if not all([service_id, user_id]):
+        if not all([service_id, user_id, start_time, end_time]):
             return jsonify({"error": "Missing required fields"}), 400
 
-        booking, error = Bookings.create_booking(service_id, user_id)
+        booking, error = Bookings.create_booking(service_id, user_id, start_time, end_time)
         
         if error:
             return jsonify({"error": error}), 400
