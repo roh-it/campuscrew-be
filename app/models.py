@@ -81,7 +81,7 @@ class Services:
     def get_all_services():
         try:
             response = supabase.table("services") \
-                .select("*, serviceimages(image_url), serviceavailability(day_of_week, start_time, end_time), users!inner(first_name, last_name, email)") \
+                .select("*, serviceimages(image_url), serviceavailability(avail_slots, max_hrs), users!inner(first_name, last_name, email)") \
                 .execute()
             
             if not response.data:
@@ -96,7 +96,7 @@ class Services:
     def get_services_by_category(category_id):
         try:
             response = supabase.table("services") \
-                .select("*, serviceimages(image_url), serviceavailability(day_of_week, start_time, end_time), users!inner(first_name, last_name, email)") \
+                .select("*, serviceimages(image_url), serviceavailability(avail_slots, max_hrs), users!inner(first_name, last_name, email)") \
                 .eq("category_id", category_id) \
                 .execute()
             
@@ -111,7 +111,7 @@ class Services:
     def get_services_by_user(user_id):
         try:
             response = supabase.table("services") \
-                .select("*, serviceimages(image_url), serviceavailability(day_of_week, start_time, end_time), users!inner(first_name, last_name, email)") \
+                .select("*, serviceimages(image_url), serviceavailability(avail_slots, max_hrs), users!inner(first_name, last_name, email)") \
                 .eq("user_id", user_id) \
                 .execute()
             
