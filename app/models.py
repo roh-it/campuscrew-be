@@ -67,10 +67,8 @@ class Services:
         slot_records = [
             {
                 "service_id": service_id,
-                "day_of_week": slot["day_of_week"],
-                "start_time": slot["start_time"],
-                "end_time": slot["end_time"]
-            }
+                "avail_slots": slot["avail_slots"],
+                "max_hrs": slot["max_hrs"]            }
             for slot in availability
         ]
         response = supabase.table("serviceavailability").insert(slot_records).execute()
@@ -129,7 +127,6 @@ class Bookings:
         try:
             slot_id = int(datetime.utcnow().timestamp() * 1000)
             
-            # Create slot record
             slot_response = supabase.table("slots").insert({
                 "slot_id": slot_id,
                 "service_id": service_id,
@@ -148,15 +145,12 @@ class Bookings:
     @staticmethod
     def create_booking(service_id, user_id, start_time, end_time):
         try:
-            # First create a slot
             slot, error = Bookings.create_slot(service_id, start_time, end_time)
             if error:
                 return None, error
 
-            # Generate UUID for booking_id
             booking_id = str(uuid.uuid4())
             
-            # Create booking record using the slot_id
             response = supabase.table("bookings").insert({
                 "booking_id": booking_id,
                 "slot_id": slot["slot_id"],

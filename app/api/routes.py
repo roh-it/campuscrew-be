@@ -66,12 +66,12 @@ def create_service():
             return jsonify({"error": error}), 500
 
         if image_urls:
-            images, error = Services.add_service_images(service_id, image_urls)
+            image_urls, error = Services.add_service_images(service_id, image_urls)
             if error:
                 return jsonify({"error": error}), 500
 
         if availability:
-            availability_data, error = Services.add_availability_slots(service_id, availability)
+            availability, error = Services.add_availability_slots(service_id, availability)
             if error:
                 return jsonify({"error": error}), 500
 
