@@ -10,7 +10,7 @@ def create_supabase_client():
 
 def create_app():
     app = Flask(__name__)
-    app.config.from_object(Config)
+    # app.config.from_object(Config)
 
     # Initialize Supabase client
     app.supabase_client = create_supabase_client()
