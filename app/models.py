@@ -105,7 +105,7 @@ class Services:
         try:
             # Fetch service data along with related serviceimages and serviceavailability
             response = supabase.table("services") \
-                .select("*,serviceimages(image_url),serviceavailability(max_hrs, avail_slots, is_booked),users!inner(first_name, last_name, email)") \
+                .select("*,serviceimages(image_url),serviceavailability(max_hrs, avail_slots, is_booked, availability_id),users!inner(first_name, last_name, email)") \
                 .execute()
 
             if not response.data:
@@ -119,7 +119,7 @@ class Services:
     def get_services_by_category(category_id):
         try:
             response = supabase.table("services") \
-                .select("*, serviceimages(image_url), serviceavailability(max_hrs, avail_slots, is_booked), users!inner(first_name, last_name, email)") \
+                .select("*, serviceimages(image_url), serviceavailability(max_hrs, avail_slots, is_booked, availability_id), users!inner(first_name, last_name, email)") \
                 .eq("category_id", category_id) \
                 .execute()
 
@@ -134,7 +134,7 @@ class Services:
     def get_services_by_user(user_id):
         try:
             response = supabase.table("services") \
-                .select("*, serviceimages(image_url), serviceavailability(max_hrs, avail_slots, is_booked), users!inner(first_name, last_name, email)")\
+                .select("*, serviceimages(image_url), serviceavailability(max_hrs, avail_slots, is_booked, availability_id), users!inner(first_name, last_name, email)")\
                 .eq("user_id", user_id) \
                 .execute()
 
