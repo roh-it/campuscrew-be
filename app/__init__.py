@@ -12,7 +12,6 @@ def create_app():
     app = Flask(__name__)
     # app.config.from_object(Config)
 
-    # Initialize Supabase client
     app.supabase_client = create_supabase_client()
 
     from .api.routes import api
