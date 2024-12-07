@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from app.models import Users, Services
 import uuid
+from datetime import datetime
 
 api = Blueprint('api', __name__)
 
@@ -54,9 +55,9 @@ def create_service():
         description = data.get("description")
         rate = data.get("rate")
         category_id = data.get("category_id")
-        user_id = data.get("user_id") 
+        user_id = data.get("user_id")
         image_urls = data.get("image_urls", [])
-        availability = data.get("availability", []) 
+        availability = data.get("availability", [])  # List of slots with timestamps
 
         if not all([name, description, rate, category_id, user_id]):
             return jsonify({"error": "Missing required fields"}), 400
@@ -71,6 +72,17 @@ def create_service():
                 return jsonify({"error": error}), 500
 
         if availability:
+            for slot in availability:
+                if 'max_hrs' not in slot or 'avail_slots' not in slot:
+                    return jsonify({"error": "Each availability slot must have 'max_hrs' and 'avail_slots'"}), 400
+                if not all(isinstance(ts, str) for ts in slot['avail_slots']):
+                    return jsonify({"error": "'avail_slots' must be a list of timestamps in string format"}), 400
+                try:
+                    for ts in slot['avail_slots']:
+                        datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    return jsonify({"error": "Invalid timestamp format in 'avail_slots'. Expected format: YYYY-MM-DD HH:MM:SS"}), 400
+
             availability_data, error = Services.add_availability_slots(service_id, availability)
             if error:
                 return jsonify({"error": error}), 500
@@ -79,6 +91,7 @@ def create_service():
             "message": "Service created successfully",
             "service_id": service_id
         }), 201
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
