@@ -1,8 +1,8 @@
 from werkzeug.security import generate_password_hash, check_password_hash
+import os
 from supabase import create_client
 import uuid
 from datetime import datetime
-import os
 
 supabase = create_client(os.environ.get('SUPABASE_URL'), os.environ.get('SUPABASE_KEY'))
 
@@ -64,112 +64,123 @@ class Services:
 
     @staticmethod
     def add_availability_slots(service_id, availability):
-        slot_records = [
-            {
-                "service_id": service_id,
-                "avail_slots": slot["avail_slots"],
-                "max_hrs": slot["max_hrs"]            }
-            for slot in availability
-        ]
+        # List to hold the individual timestamp records
+        slot_records = []
+
+        # Iterate over the availability data and split into individual records for each timestamp
+        for slot in availability:
+            if 'max_hrs' not in slot or 'avail_slots' not in slot:
+                return None, "Each availability slot must have 'max_hrs' and 'avail_slots'"
+
+            # Ensure avail_slots is a list of timestamps (strings)
+            if not isinstance(slot['avail_slots'], list):
+                return None, "'avail_slots' must be a list of timestamps in string format"
+
+            try:
+                # Validate each timestamp format
+                for ts in slot['avail_slots']:
+                    datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")  # Check timestamp format
+
+                # Create a record for each timestamp
+                for ts in slot['avail_slots']:
+                    slot_records.append({
+                        "service_id": service_id,
+                        "max_hrs": slot["max_hrs"],  # Store max_hrs for each timestamp
+                        "avail_slots": ts,  # Store individual timestamp
+                        "is_booked": False  # Default value for is_booked
+                    })
+            except ValueError:
+                return None, "Invalid timestamp format in 'avail_slots'. Expected format: YYYY-MM-DD HH:MM:SS"
+
+        # Insert records into the serviceavailability table
         response = supabase.table("serviceavailability").insert(slot_records).execute()
 
         if not response.data:
             return None, f"Failed to add service availability: {response.error.message if response.error else 'Unknown error'}"
+        
         return response.data, None
     
     @staticmethod
     def get_all_services():
         try:
+            # Fetch service data along with related serviceimages and serviceavailability
             response = supabase.table("services") \
-                .select("*, serviceimages(image_url), serviceavailability(avail_slots, max_hrs), users!inner(first_name, last_name, email)") \
+                .select("*,serviceimages(image_url),serviceavailability(max_hrs, avail_slots, is_booked),users!inner(first_name, last_name, email)") \
                 .execute()
-            
+
             if not response.data:
                 return [], None
-            
+
             return response.data, None
         except Exception as e:
             return None, f"Error fetching services: {str(e)}"
-        
 
     @staticmethod
     def get_services_by_category(category_id):
         try:
             response = supabase.table("services") \
-                .select("*, serviceimages(image_url), serviceavailability(avail_slots, max_hrs), users!inner(first_name, last_name, email)") \
+                .select("*, serviceimages(image_url), serviceavailability(max_hrs, avail_slots, is_booked), users!inner(first_name, last_name, email)") \
                 .eq("category_id", category_id) \
                 .execute()
-            
+
             if not response.data:
                 return [], None
-                
+
             return response.data, None
         except Exception as e:
             return None, f"Error fetching services by category: {str(e)}"
-        
+
     @staticmethod
     def get_services_by_user(user_id):
         try:
             response = supabase.table("services") \
-                .select("*, serviceimages(image_url), serviceavailability(avail_slots, max_hrs), users!inner(first_name, last_name, email)") \
+                .select("*, serviceimages(image_url), serviceavailability(max_hrs, avail_slots, is_booked), users!inner(first_name, last_name, email)")\
                 .eq("user_id", user_id) \
                 .execute()
-            
+
             if not response.data:
                 return [], None
-                
+
             return response.data, None
         except Exception as e:
             return None, f"Error fetching services by user: {str(e)}"
 class Bookings:
     @staticmethod
-    def create_slot(service_id, start_time, end_time):
+    def create_booking(service_id, user_id, availability_id):
         try:
-            slot_id = int(datetime.utcnow().timestamp() * 1000)
+            # change .single() for error message
+            availability_response = supabase.table("serviceavailability") \
+                .select("*") \
+                .eq("availability_id", availability_id) \
+                .execute()
+
+            if not availability_response.data:
+                return None, "Selected time slot is not available"
             
-            slot_response = supabase.table("slots").insert({
-                "slot_id": slot_id,
-                "service_id": service_id,
-                "start_time": start_time,
-                "end_time": end_time,
-                "is_booked": False
-            }).execute()
-
-            if not slot_response.data:
-                return None, "Failed to create slot"
-
-            return slot_response.data[0], None
-        except Exception as e:
-            return None, str(e)
-
-    @staticmethod
-    def create_booking(service_id, user_id, start_time, end_time):
-        try:
-            slot, error = Bookings.create_slot(service_id, start_time, end_time)
-            if error:
-                return None, error
-
+            slot = availability_response.data[0]
+            if slot["is_booked"]:
+                return None, "Slot not available"
+        
             booking_id = str(uuid.uuid4())
             
-            response = supabase.table("bookings").insert({
+            booking_response = supabase.table("bookings").insert({
                 "booking_id": booking_id,
-                "slot_id": slot["slot_id"],
+                "service_id": service_id,
                 "booked_by": user_id,
-                "booking_time": datetime.utcnow().isoformat()
+                "booking_time": datetime.utcnow().isoformat(),
+                "availability_id": availability_id
             }).execute()
 
-            if not response.data:
+            if not booking_response.data:
                 return None, "Failed to create booking"
             
-            supabase.table("slots") \
+            supabase.table("serviceavailability") \
                 .update({"is_booked": True}) \
-                .eq("slot_id", slot["slot_id"]) \
+                .eq("availability_id", availability_id) \
                 .execute()
             
-            return {
-                **response.data[0],
-                "slot": slot
-            }, None
+            return booking_response.data[0], None
+
         except Exception as e:
             return None, str(e)
 
@@ -184,11 +195,14 @@ class Bookings:
                         last_name,
                         email
                     ),
-                    slots!inner(
-                        slot_id,
-                        service_id,
-                        start_time,
-                        end_time,
+                    services!inner(
+                        name,
+                        description,
+                        rate
+                    ),
+                    serviceavailability!inner(
+                        max_hrs,
+                        avail_slots,
                         is_booked
                     )
                 """) \
@@ -200,7 +214,7 @@ class Bookings:
             return None, str(e)
 
     @staticmethod
-    def get_booking_by_slot(slot_id):
+    def get_booking_details(booking_id):
         try:
             response = supabase.table("bookings") \
                 .select("""
@@ -210,15 +224,18 @@ class Bookings:
                         last_name,
                         email
                     ),
-                    slots!inner(
-                        slot_id,
-                        service_id,
-                        start_time,
-                        end_time,
+                    services!inner(
+                        name,
+                        description,
+                        rate
+                    ),
+                    serviceavailability!inner(
+                        max_hrs,
+                        avail_slots,
                         is_booked
                     )
                 """) \
-                .eq("slot_id", slot_id) \
+                .eq("booking_id", booking_id) \
                 .single() \
                 .execute()
             return response.data, None

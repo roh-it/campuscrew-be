@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from app.models import Users, Services, Bookings
 import uuid
+from datetime import datetime
 
 api = Blueprint('api', __name__)
 
@@ -54,9 +55,9 @@ def create_service():
         description = data.get("description")
         rate = data.get("rate")
         category_id = data.get("category_id")
-        user_id = data.get("user_id") 
+        user_id = data.get("user_id")
         image_urls = data.get("image_urls", [])
-        availability = data.get("availability", []) 
+        availability = data.get("availability", [])  # List of slots with timestamps
 
         if not all([name, description, rate, category_id, user_id]):
             return jsonify({"error": "Missing required fields"}), 400
@@ -66,12 +67,23 @@ def create_service():
             return jsonify({"error": error}), 500
 
         if image_urls:
-            image_urls, error = Services.add_service_images(service_id, image_urls)
+            images, error = Services.add_service_images(service_id, image_urls)
             if error:
                 return jsonify({"error": error}), 500
 
         if availability:
-            availability, error = Services.add_availability_slots(service_id, availability)
+            for slot in availability:
+                if 'max_hrs' not in slot or 'avail_slots' not in slot:
+                    return jsonify({"error": "Each availability slot must have 'max_hrs' and 'avail_slots'"}), 400
+                if not all(isinstance(ts, str) for ts in slot['avail_slots']):
+                    return jsonify({"error": "'avail_slots' must be a list of timestamps in string format"}), 400
+                try:
+                    for ts in slot['avail_slots']:
+                        datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    return jsonify({"error": "Invalid timestamp format in 'avail_slots'. Expected format: YYYY-MM-DD HH:MM:SS"}), 400
+
+            availability_data, error = Services.add_availability_slots(service_id, availability)
             if error:
                 return jsonify({"error": error}), 500
 
@@ -79,6 +91,7 @@ def create_service():
             "message": "Service created successfully",
             "service_id": service_id
         }), 201
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -123,20 +136,18 @@ def get_services():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
-
 @api.route("/createBooking", methods=["POST"])
 def create_booking():
     try:
         data = request.get_json()
         service_id = data.get("service_id")
         user_id = data.get("user_id")
-        start_time = data.get("start_time")
-        end_time = data.get("end_time")
+        availability_id = data.get("availability_id")
 
-        if not all([service_id, user_id, start_time, end_time]):
+        if not all([service_id, user_id, availability_id]):
             return jsonify({"error": "Missing required fields"}), 400
 
-        booking, error = Bookings.create_booking(service_id, user_id, start_time, end_time)
+        booking, error = Bookings.create_booking(service_id, user_id, availability_id)
         
         if error:
             return jsonify({"error": error}), 400
@@ -145,9 +156,10 @@ def create_booking():
             "message": "Booking created successfully",
             "booking": {
                 "booking_id": booking["booking_id"],
-                "slot_id": booking["slot_id"],
+                "service_id": booking["service_id"],
                 "booked_by": booking["booked_by"],
-                "booking_time": booking["booking_time"]
+                "booking_time": booking["booking_time"],
+                "availability_id": booking["availability_id"]
             }
         }), 201
 
@@ -169,10 +181,10 @@ def get_user_bookings(user_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@api.route("/booking/slot/<slot_id>", methods=["GET"])
-def get_booking_by_slot(slot_id):
+@api.route("/booking/<booking_id>", methods=["GET"])
+def get_booking_details(booking_id):
     try:
-        booking, error = Bookings.get_booking_by_slot(slot_id)
+        booking, error = Bookings.get_booking_details(booking_id)
         if error:
             return jsonify({"error": error}), 500
 
