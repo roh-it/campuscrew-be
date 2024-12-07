@@ -1,10 +1,10 @@
 from werkzeug.security import generate_password_hash, check_password_hash
-from .config import Config
 from supabase import create_client
 import uuid
 from datetime import datetime
+import os
 
-supabase = create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
+supabase = create_client(os.environ.get('SUPABASE_URL'), os.environ.get('SUPABASE_KEY'))
 
 class Users:
     @staticmethod
