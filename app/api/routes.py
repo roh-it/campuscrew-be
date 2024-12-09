@@ -15,7 +15,8 @@ def create_user():
     isPfw = data.get("isPfw")
     if not password or not email:
         return jsonify({'error': 'E-Mail and password are required'}), 400
-    
+    if isPfw and "@pfw.edu" not in email:
+        return jsonify({'error': 'Not a valid PFW email'}), 400
     existing_user = Users.find_by_email(email)
     if existing_user:
         return jsonify({'error': 'Email is already in use'}), 400
