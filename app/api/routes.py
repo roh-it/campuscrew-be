@@ -15,7 +15,8 @@ def create_user():
     isPfw = data.get("isPfw")
     if not password or not email:
         return jsonify({'error': 'E-Mail and password are required'}), 400
-    
+    if isPfw and "@pfw.edu" not in email:
+        return jsonify({'error': 'Not a valid PFW email'}), 400
     existing_user = Users.find_by_email(email)
     if existing_user:
         return jsonify({'error': 'Email is already in use'}), 400
@@ -135,6 +136,64 @@ def get_services():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@api.route('/editService/<service_id>', methods=['PUT'])
+def edit_service(service_id):
+    try:
+        data = request.get_json()
+        updates = {}
+
+        if 'name' in data:
+            updates['name'] = data['name']
+        if 'description' in data:
+            updates['description'] = data['description']
+        if 'rate' in data:
+            updates['rate'] = data['rate']
+        if 'category_id' in data:
+            updates['category_id'] = data['category_id']
+
+        if not updates:
+            return jsonify({"error": "No valid fields to update"}), 400
+
+        response = Services.update_service(service_id, updates)
+
+        if not response.data:
+            return jsonify({"error": "Failed to update service"}), 500
+
+        return jsonify({"message": "Service updated successfully", "updated_service": response.data}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@api.route('/editSlot/<availability_id>', methods=['PUT'])
+def edit_slot(availability_id):
+    try:
+        data = request.get_json()
+        updates = {}
+        if 'avail_slots' in data:
+            if not all(isinstance(ts, str) for ts in data['avail_slots']):
+                return jsonify({"error": "'avail_slots' must be a list of timestamps in string format"}), 400
+            try:
+                ts = data['avail_slots']
+                datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                return jsonify({"error": "Invalid timestamp format in 'avail_slots'. Expected format: YYYY-MM-DD HH:MM:SS"}), 400
+            updates['avail_slots'] = data['avail_slots']
+        
+        if 'max_hrs' in data:
+            updates['max_hrs'] = data['max_hrs']
+
+        if not updates:
+            return jsonify({"error": "No valid fields to update"}), 400
+
+        response = Services.update_availability(availability_id, updates)
+
+        if not response.data:
+            return jsonify({"error": "Failed to update slot"}), 500
+
+        return jsonify({"message": "Slot updated successfully", "updated_slot": response.data}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
     
 @api.route("/createBooking", methods=["POST"])
 def create_booking():
@@ -193,5 +252,81 @@ def get_booking_details(booking_id):
             "booking": booking
         }), 200
 
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@api.route('/deleteSlotTiming/<slot_id>', methods=['DELETE'])
+def delete_slot_timing(slot_id):
+    try:
+        delete_booking_response = Services.delete_booking_with_slot_id(slot_id)
+        
+        if not delete_booking_response.data:
+            return jsonify({"error": "Failed to delete slot bookings"}), 500
+
+        slot_response = Services.delete_slots(slot_id)
+
+        if not slot_response.data:
+            return jsonify({"error": "Failed to delete slot timing"}), 500
+
+        return jsonify({"message": "Slot timing and associated bookings deleted successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@api.route('/deleteBooking/<booking_id>', methods=['DELETE'])
+def delete_booking(booking_id):
+    try:
+        # Get the availability_id associated with the booking to mark it as not booked
+        booking_response = Services.get_avail_id_of_booking(booking_id)
+        
+        if not booking_response.data:
+            return jsonify({"error": "Booking not found"}), 404
+        
+        availability_id = booking_response.data['availability_id']
+
+        # Delete the booking
+        delete_response = Services.delete_booking_with_booking_id(booking_id)
+
+        if not delete_response.data:
+            return jsonify({"error": "Failed to delete booking"}), 500
+
+        # Update availability slot to mark it as not booked
+        delete = Services.update_book_status_false(availability_id)
+
+        return jsonify({"message": "Booking deleted successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@api.route('/deleteService/<service_id>', methods=['DELETE'])
+def delete_service(service_id):
+    try:
+        # Step 1: Check for and delete related bookings
+        booking_response = Services.get_bookings_from_service_id(service_id)
+        
+        if booking_response.data:
+            booking_ids = [booking['booking_id'] for booking in booking_response.data]
+            delete_bookings_response = Services.delete_multiple_bookings(booking_ids)
+
+            if not delete_bookings_response.data:
+                return jsonify({"error": "Failed to delete service bookings"}), 500
+
+        # Step 2: Delete related availability slots
+        availability_response = Services.delete_slots_with_service_id(service_id)
+
+        if not availability_response.data:
+            return jsonify({"error": "Failed to delete availability slots"}), 500
+
+        # Step 3: Delete related images
+        image_response = Services.delete_service_images(service_id)
+
+        if not image_response.data:
+            return jsonify({"error": "Failed to delete service images"}), 500
+
+        # Step 4: Delete the service itself
+        service_response = Services.delete_service(service_id)
+
+        if not service_response.data:
+            return jsonify({"error": "Failed to delete service"}), 500
+
+        return jsonify({"message": "Service, bookings, availability slots, and images deleted successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
