@@ -3,6 +3,8 @@ flask==3.0.0
 cryptography
 werkzeug
 supabase
+pytest
+pytest-mock
 psycopg2-binary
 flask-cors
 gunicorn==20.1.0
