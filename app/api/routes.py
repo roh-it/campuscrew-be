@@ -258,10 +258,7 @@ def get_booking_details(booking_id):
 @api.route('/deleteSlotTiming/<slot_id>', methods=['DELETE'])
 def delete_slot_timing(slot_id):
     try:
-        delete_booking_response = Services.delete_booking_with_slot_id(slot_id)
-        
-        if not delete_booking_response.data:
-            return jsonify({"error": "Failed to delete slot bookings"}), 500
+        delete_booking_response = Services.delete_booking_with_slot_id(slot_id)        
 
         slot_response = Services.delete_slots(slot_id)
 
@@ -306,14 +303,9 @@ def delete_service(service_id):
             booking_ids = [booking['booking_id'] for booking in booking_response.data]
             delete_bookings_response = Services.delete_multiple_bookings(booking_ids)
 
-            if not delete_bookings_response.data:
-                return jsonify({"error": "Failed to delete service bookings"}), 500
 
         # Step 2: Delete related availability slots
         availability_response = Services.delete_slots_with_service_id(service_id)
-
-        if not availability_response.data:
-            return jsonify({"error": "Failed to delete availability slots"}), 500
 
         # Step 3: Delete related images
         image_response = Services.delete_service_images(service_id)
